@@ -38,12 +38,13 @@ if len(sys.argv)==2:
 else:#use default test config file
     config_file='D:/temp/upload_file/sync_2.ini'
     
-if os.path.isfile(config_file)==False:
-    print 'config file does not exist'
-    exit()
-if os.path.isabs(config_file)==False:
+if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
     config_file=os.path.realpath(os.path.dirname(script_path)+os.sep+config_file)
     
+if os.path.isfile(config_file)==False:
+    print 'config file does not exist'
+    exit()    
+
 print 'config: ',config_file    
    
 
