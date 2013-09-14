@@ -20,6 +20,11 @@ automkdir = true #若服务器上目录不存在是否自动建立
 local_webroot = D:/xampp/web/ 
 log_file = #不存储日志留空
 
+#paths 需要强制检测的目录，不依赖于版本控制软件
+#也就是说即使版本控制忽略了该目录，只有该目录下有文件变动，也会自动上传到服务器
+paths= #多个目录用英文逗号"," 分割path1,path2 
+
+
 [var]
 lasttime = 0 #或者是当前时间
 需要注意的是webroot这一项
@@ -29,6 +34,7 @@ lasttime = 0 #或者是当前时间
 """
 import os,time,sys
 import stat
+import string
 from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
@@ -85,6 +91,11 @@ def setLastTime():
     cf.write(open(config_file, "w"))
 #获取文件列表
 def getSvnFiles():
+    """
+        Returns:
+            file 文件的相对路径 ，op 目前没有用到
+            example: [{'file': 'upload/images/a.jpg', 'op': '?'},...]
+    """
     global local_webroot
     #fpath=config_path+'file_list.txt'
     os.chdir(local_webroot)
@@ -99,7 +110,6 @@ def getSvnFiles():
         files.append({'op':line[0:1],'file':line[8:]})
     return files
 
-#获取最后一次上传时间
 def writeLogs(str,showTime = False ):
     global log_file
     if log_file=='':
@@ -110,8 +120,43 @@ def writeLogs(str,showTime = False ):
     f.write(str)
     f.close()
 #print getSvnFiles()    
- 
- 
+
+#遍历目录
+def walk_path(top):
+    """ 
+    Args:
+        top: 相对web根目录的相对路径 
+    Returns:
+        该目录下的所有文件列表的一个数组
+        格式同 getSvnFiles()的返回值
+        example:[{'file': 'upload/images/a.jpg', 'op': '?'},...]
+    """
+    global local_webroot
+    os.chdir(local_webroot)
+    flist=[]
+    for root, dirs, files in os.walk(top, topdown=False):
+        for name in files:
+            f=os.path.join(root, name)
+            flist.append({'op':'n','file':f})
+    return flist        
+
+
+#获取不依赖[版本控制]监测变动的文件列表
+def getKcFiles():
+    global cf
+    if cf.has_option('local','paths')==False:
+        return []
+    flist=[]    
+    paths=cf.get('local','paths')
+    paths=string.split(paths,',')
+    for path in paths:
+        flist.extend(walk_path(path))
+    return flist
+
+#print getKcFiles()
+#quit();
+#--------------------------------
+#获取最后一次上传时间
 lastTime=getLastTime();
 
 
@@ -145,6 +190,7 @@ print 'current path :'+ftp.pwd()
 bufsize=1024
 
 filelist=getSvnFiles()
+filelist.extend(getKcFiles())
 uploadNum=0#上传文件数量
 
 writeLogs('\n\n开始\n')
