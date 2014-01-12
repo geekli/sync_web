@@ -5,7 +5,8 @@ sync_web
 
 author: [ksc](http://blog.geekli.cn)
 
-用法: sync_web config.ini
+用法: sync_web config.ini （若使用脚本所在目录下的config.ini则使用该文件）
+
 > 需要安装python2.7环境与svn客户端（确保svn所在目录加入到环境变量path中）
 
 > 在window下多个网站的话比较方便的方法是
@@ -28,15 +29,16 @@ config.ini:
     ssl = True #是否启用ssl
     webroot = /web/ #网址相对于ftp根目录的绝对地址 
     automkdir = true #若服务器上目录不存在是否自动建立
-
+    
     [local]
     local_webroot = D:/xampp/web/ 
     log_file = #不存储日志留空
-    
+    prompt=False #同步时是否需要确认，默认False，可空
     paths= #多个目录用英文逗号"," 分割path1,path2 
     
+    
     [var]
-    lasttime = 0 #或者是当前时间
+    lasttime = 0 #或者是当前时间戳
 需要注意的是
 
 webroot
@@ -51,10 +53,8 @@ paths
 
 ###计划
 
-* 配置文件中可设置忽略目录
-
+* 配置文件中可设置忽略目录（优先级高）
 * <del>配置文件中可设置强制监测是否有修改的目录（即使该目录没有纳入版本控制）</del>
-
-* 添加更新时是否需要确认一遍要上传的文件
-
+* <del>添加更新时是否需要确认一遍要上传的文件</del>
 * 增加对git的支持
+* 支持同时同步到多台服务器上

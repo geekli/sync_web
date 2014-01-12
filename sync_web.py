@@ -4,37 +4,13 @@
 将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn)
 usage: sync_web config.ini
 author: ksc (http://blog.geekli.cn)
- 
-配置文件格式如下
-config.ini:
-[ftp]
-host = test.com #FTP主机地址
-port = 21       #FTP端口
-user = ftp_user #FTP 用户名
-passwd = ftp_passwd
-ssl = True #是否启用ssl
-webroot = /web/ #网址相对于ftp根目录的绝对地址 
-automkdir = true #若服务器上目录不存在是否自动建立
-
-[local]
-local_webroot = D:/xampp/web/ 
-log_file = #不存储日志留空
-
-#paths 需要强制检测的目录，不依赖于版本控制软件
-#也就是说即使版本控制忽略了该目录，只有该目录下有文件变动，也会自动上传到服务器
-paths= #多个目录用英文逗号"," 分割path1,path2 
-
-
-[var]
-lasttime = 0 #或者是当前时间
-需要注意的是webroot这一项
-比如 网站的绝对路径是 /var/www/web/ 但是ftp登陆后的根目录是/var/www/ 也就是说不能再往上走了
-那么你的webroot 填写 /web/就可以了
+version: 2.0
 
 """
 import os,time,sys
 import stat
 import string
+import subprocess
 from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
@@ -42,7 +18,7 @@ script_path=sys.argv[0]
 if len(sys.argv)==2:
     config_file=sys.argv[1]
 else:#use default test config file
-    config_file='D:/temp/upload_file/sync_2.ini'
+    config_file='config.ini'
     
 if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
     config_file=os.path.realpath(os.path.dirname(script_path)+os.sep+config_file)
@@ -52,43 +28,25 @@ if os.path.isfile(config_file)==False:
     exit()    
 
 print 'config: ',config_file    
-   
 
+conf={}
 cf = ConfigParser.ConfigParser()
 try:
     cf.read(config_file)
-    ftp_host    =cf.get('ftp','host')
-    ftp_user    =cf.get('ftp','user')
-    ftp_webroot =cf.get('ftp','webroot')
-    ftp_port    =cf.get('ftp','port')
-    ftp_passwd  =cf.get('ftp','passwd')
-    ftp_ssl     =cf.getboolean('ftp','ssl')
-    automkdir   =cf.getboolean('ftp','automkdir')
     local_webroot =cf.get('local','local_webroot')
-    log_file      =cf.get('local','log_file')
+    conf['log_file'] = cf.get('local','log_file')
+    conf['prompt'] = False #prompt before every sync
+    if cf.has_option('local','prompt'):
+        conf['prompt']=cf.getboolean('local','prompt')
     
 except Exception,e:
     print 'Parse config file failed'
     print e
     exit()
-
-local_webroot=os.path.realpath(local_webroot)+os.sep
-#print local_webroot
-
-# 获取最后一次上传时间
-def getLastTime():
-    global cf
-    try:
-        ltime= cf.getfloat('var','lasttime')
-    except:
-        return 0
-    return ltime
     
-# 设置最后一次修改时间    
-def setLastTime():
-    global cf,config_file
-    cf.set("var", "lasttime", time.time())
-    cf.write(open(config_file, "w"))
+#本地项目目录
+local_webroot=os.path.realpath(local_webroot)+os.sep
+
 #获取文件列表
 def getSvnFiles():
     """
@@ -97,29 +55,29 @@ def getSvnFiles():
             example: [{'file': 'upload/images/a.jpg', 'op': '?'},...]
     """
     global local_webroot
-    #fpath=config_path+'file_list.txt'
+    
     os.chdir(local_webroot)
     #导出修改的文件列表
-    #os.system('svn st >'+fpath)
-    file_list=os.popen('svn st','r')
-    f = file_list #open(fpath,'r')
+    pipe=subprocess.Popen("svn st", shell=True,stdout=subprocess.PIPE)
+    pipe.wait()
+    if pipe.returncode > 0:
+        exit()
     files=[]
-    for line in f:
+    for line in pipe.stdout:
         line=line.rstrip()
         #print line
         files.append({'op':line[0:1],'file':line[8:]})
     return files
 
 def writeLogs(str,showTime = False ):
-    global log_file
-    if log_file=='':
+    global conf
+    if conf['log_file']=='':
         return
     if showTime:
         str=time.strftime('%Y-%m-%d %H:%M:%S')+'  '+str+'\n'
-    f=open(log_file,'a+')
+    f=open(conf['log_file'],'a+')
     f.write(str)
     f.close()
-#print getSvnFiles()    
 
 #遍历目录
 def walk_path(top):
@@ -153,88 +111,152 @@ def getKcFiles():
         flist.extend(walk_path(path))
     return flist
 
-#print getKcFiles()
-#quit();
-#--------------------------------
-#获取最后一次上传时间
-lastTime=getLastTime();
-
-
-#初始化 FTP 链接
-if ftp_ssl:
-    ftp = FTPS()  
-    print  'connect ',ftp_host,':',ftp_port,' ftps'
-    ftp.connect(ftp_host,ftp_port) # connect to host, default port
-    try:
+def prompt_sync(filelist):
+    print
+    for f in filelist:
+        print f['file']
+    y=raw_input('start sync?[Y/n]\n')
+    if y=='n':
+        quit() 
         
-        ftp.login(ftp_user,ftp_passwd)
-        ftp.prot_p()
-    except Exception,e:#可能服务器不支持ssl,或者用户名密码不正确
-        print e
-        print 'Make sure the SSL is on ; Username and password are correct'
-        exit()
-      
-else:
-    ftp = FTP()   # connect to host, default port
-    print  'connect ',ftp_host+':'+str(ftp_port),'ftp'
-    ftp.connect(ftp_host,ftp_port)
-    ftp.login(ftp_user,ftp_passwd)
-    print 'login ok'
-print ftp.getwelcome()
- 
-
-ftp.cwd(ftp_webroot) 
-
-print 'current path :'+ftp.pwd()
- 
-bufsize=1024
-
+class Ftp_sync:
+    def __init__(self,ftp_name):
+        global config_file,local_webroot,cf
+        self.bufsize = 1024
+        self.cf = cf
+        self.config_file = config_file
+        self.local_webroot = local_webroot
+        self.ftp_name = ftp_name
+        try:
+            self.ftp_host    = cf.get(ftp_name,'host')
+            self.ftp_port    = cf.get(ftp_name,'port')
+            self.ftp_user    = cf.get(ftp_name,'user')
+            self.ftp_passwd  = cf.get(ftp_name,'passwd')
+            self.ftp_webroot = cf.get(ftp_name,'webroot')
+            self.ftp_ssl     = cf.getboolean(ftp_name,'ssl')
+            self.automkdir   = cf.getboolean(ftp_name,'automkdir')
+        except Exception,e:
+            print 'Parse config file failed in ['+ftp_name+']'
+            print e
+            exit()
+        self.lastUploadTime=self.getLastTime()
+        self.filelist=[]
+    
+    def setFileList(self,filelist):
+        """ 设置需要同步的文件列表"""
+        self.filelist=filelist
+        
+    def getLastTime(self):
+        """返回最后一次同步的时间"""
+        try:
+            ltime= cf.getfloat('var','lasttime')
+        except:
+            return 0
+        return ltime
+        
+    def setLastTime(self):
+        """设置最后一次同步的时间"""
+        self.cf.set("var", "lasttime", time.time())
+        self.cf.write(open(self.config_file, "w"))
+        
+    def connect(self):
+        #初始化 FTP 链接
+        if self.ftp_ssl:
+            ftp = FTPS()
+        else:
+            ftp = FTP()
+        print  'connect',('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port
+        try:
+            ftp.connect(self.ftp_host,self.ftp_port)
+        except Exception,e:
+            print e
+            print 'connect ftp server failed'
+            exit()
+        try:
+            ftp.login(self.ftp_user,self.ftp_passwd)
+            print 'login ok'    
+        except Exception,e:#可能服务器不支持ssl,或者用户名密码不正确
+            print e
+            print 'Username or password are not correct'
+            exit()        
+        
+        if self.ftp_ssl:
+            try:    
+                ftp.prot_p()
+            except Exception,e:
+                print e
+                print 'Make sure the SSL is on ;'
+            
+        print ftp.getwelcome()
+        ftp.cwd(self.ftp_webroot)
+        print 'current path: '+ftp.pwd()
+        
+        self.ftp=ftp
+    
+    def sync(self):
+        _uploadNum = 0
+        _bufsize=1024
+       
+        writeLogs('\n\n'+'start sync '+self.ftp_name+'\n')
+        for line in self.filelist:
+            file=line['file'] 
+            fullname=self.local_webroot+file
+            file= file.replace('\\','/')
+            if not os.path.isfile(fullname):
+                continue
+             
+            _st=os.stat(fullname)
+            st_mtime = _st[stat.ST_MTIME]
+            
+            if st_mtime > self.lastUploadTime:#如果从上次上传后，文件修改过
+     
+                _uploadNum=_uploadNum+1
+                writeLogs(fullname,True)
+                print file
+                file_handler = open(fullname,'rb')
+                ftp_file=self.ftp_webroot+file
+                try:
+                    self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
+                except Exception,e:
+                    #print e
+                    if self.automkdir== False:
+                        quit()
+                    else:# make dir and try again
+                        try:
+                            print 'try mkdir: '+os.path.dirname(file)
+                            ftpdirs=os.path.dirname(file).split('/')
+                            for _ftpdir in ftpdirs:
+                                try:
+                                    self.ftp.mkd(_ftpdir)
+                                except:
+                                    pass #忽略创建目录的错误
+                                self.ftp.cwd(_ftpdir)                               
+                            self.ftp.cwd(self.ftp_webroot)
+                            self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
+                            print 'upload success'
+                        except Exception,e:
+                            print e
+                            quit()
+                finally:        
+                    file_handler.close()
+                        
+        self.setLastTime()            
+        self.ftp.quit()
+        if  _uploadNum >0:
+            writeLogs('共上传'+str(_uploadNum)+'个文件')
+        else:
+            writeLogs('没有上传文件')
+        print 'success';
+        
 filelist=getSvnFiles()
 filelist.extend(getKcFiles())
-uploadNum=0#上传文件数量
+if conf['prompt']:
+    prompt_sync(filelist)
+    
+sync=Ftp_sync('ftp')
+sync.setFileList(filelist)
+sync.connect()
+sync.sync()
 
-writeLogs('\n\n开始\n')
-for line in filelist:
-    file=line['file'] 
-    fullname=local_webroot+file
-    file= file.replace('\\','/')
-    if os.path.isfile(fullname):
-        _st=os.stat(fullname)
-        st_mtime = _st[stat.ST_MTIME]
-        
-        if st_mtime > lastTime:#如果从上次上传后，文件修改过
- 
-            uploadNum=uploadNum+1
-            writeLogs(fullname,True)
-            print file
-            file_handler = open(fullname,'rb')
-            try:
-                ftp_file=ftp_webroot+file
-                ftp.storbinary('STOR '+ftp_file,file_handler,bufsize) 
-            except Exception,e:
-                if automkdir== False:
-                    print e
-                    quit()
-                else:
-                    try:
-                        ftp.mkd(os.path.dirname(ftp_file))
-                        ftp.storbinary('STOR '+ftp_file,file_handler,bufsize) 
-                    except Exception,e:
-                        print e
-                        quit()
-            finally:        
-                file_handler.close()
-                
-            
-
-if  uploadNum >0:
-    writeLogs('共上传'+str(uploadNum)+'个文件')
-else:
-    writeLogs('没有上传文件')
-setLastTime()
-ftp.quit()
-print 'success';
 time.sleep(2)
-
-
 
