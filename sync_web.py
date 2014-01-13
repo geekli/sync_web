@@ -47,18 +47,27 @@ except Exception,e:
 #本地项目目录
 local_webroot=os.path.realpath(local_webroot)+os.sep
 
-#获取文件列表
-def getSvnFiles():
+#依赖版本控制系统获取变动文件列表
+def getChangeFiles():
     """
         Returns:
             file 文件的相对路径 ，op 目前没有用到
             example: [{'file': 'upload/images/a.jpg', 'op': '?'},...]
     """
     global local_webroot
-    
+    if os.path.isdir(local_webroot+'.svn'):
+        type='svn'
+        sh='svn st'
+    elif os.path.isdir(local_webroot+'.git'):
+        type='git'
+        sh='git status -s'
+    else:
+        print 'no version control'
+        sys.exit()
+        
     os.chdir(local_webroot)
     #导出修改的文件列表
-    pipe=subprocess.Popen("svn st", shell=True,stdout=subprocess.PIPE)
+    pipe=subprocess.Popen(sh, shell=True,stdout=subprocess.PIPE)
     pipe.wait()
     if pipe.returncode > 0:
         sys.exit()
@@ -66,7 +75,10 @@ def getSvnFiles():
     for line in pipe.stdout:
         line=line.rstrip()
         #print line
-        files.append({'op':line[0:1],'file':line[8:]})
+        if type=='svn':
+            files.append({'op':line[0:1],'file':line[8:]})
+        else:
+            files.append({'op':line[0:3],'file':line[3:]})
     return files
 
 def writeLogs(str,showTime = False ):
@@ -248,7 +260,7 @@ class Ftp_sync:
             writeLogs('没有上传文件')
         print 'success';
         
-filelist=getSvnFiles()
+filelist=getChangeFiles()
 filelist.extend(getKcFiles())
 if conf['prompt']:
     prompt_sync(filelist)

@@ -5,9 +5,9 @@ sync_web
 
 author: [ksc](http://blog.geekli.cn)
 
-用法: sync_web config.ini （若使用脚本所在目录下的config.ini则使用该文件）
+用法: sync_web config.ini （若脚本所在目录下的config.ini则使用该文件）
 
-> 需要安装python2.7环境与svn客户端（确保svn所在目录加入到环境变量path中）
+> 需要安装python2.7环境与**svn**|**git**客户端（确保**svn**|**git**命令所在目录加入到环境变量path中，即在终端下可以执行）
 
 > 在window下多个网站的话比较方便的方法是
    
@@ -56,5 +56,5 @@ paths
 * 配置文件中可设置忽略目录（优先级高）
 * <del>配置文件中可设置强制监测是否有修改的目录（即使该目录没有纳入版本控制）</del>
 * <del>添加更新时是否需要确认一遍要上传的文件</del>
-* 增加对git的支持
+* <del>增加对git的支持</del>
 * 支持同时同步到多台服务器上
