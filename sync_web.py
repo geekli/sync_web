@@ -25,7 +25,7 @@ if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
     
 if os.path.isfile(config_file)==False:
     print 'config file does not exist'
-    exit()    
+    sys.exit()    
 
 print 'config: ',config_file    
 
@@ -42,7 +42,7 @@ try:
 except Exception,e:
     print 'Parse config file failed'
     print e
-    exit()
+    sys.exit()
     
 #本地项目目录
 local_webroot=os.path.realpath(local_webroot)+os.sep
@@ -61,7 +61,7 @@ def getSvnFiles():
     pipe=subprocess.Popen("svn st", shell=True,stdout=subprocess.PIPE)
     pipe.wait()
     if pipe.returncode > 0:
-        exit()
+        sys.exit()
     files=[]
     for line in pipe.stdout:
         line=line.rstrip()
@@ -117,7 +117,7 @@ def prompt_sync(filelist):
         print f['file']
     y=raw_input('start sync?[Y/n]\n')
     if y=='n':
-        quit() 
+        sys.exit()
         
 class Ftp_sync:
     def __init__(self,ftp_name):
@@ -138,7 +138,7 @@ class Ftp_sync:
         except Exception,e:
             print 'Parse config file failed in ['+ftp_name+']'
             print e
-            exit()
+            sys.exit()
         self.lastUploadTime=self.getLastTime()
         self.filelist=[]
     
@@ -171,14 +171,14 @@ class Ftp_sync:
         except Exception,e:
             print e
             print 'connect ftp server failed'
-            exit()
+            sys.exit()
         try:
             ftp.login(self.ftp_user,self.ftp_passwd)
             print 'login ok'    
         except Exception,e:#可能服务器不支持ssl,或者用户名密码不正确
             print e
             print 'Username or password are not correct'
-            exit()        
+            sys.exit()        
         
         if self.ftp_ssl:
             try:    
@@ -220,7 +220,7 @@ class Ftp_sync:
                 except Exception,e:
                     #print e
                     if self.automkdir== False:
-                        quit()
+                        sys.exit()
                     else:# make dir and try again
                         try:
                             print 'try mkdir: '+os.path.dirname(file)
@@ -236,7 +236,7 @@ class Ftp_sync:
                             print 'upload success'
                         except Exception,e:
                             print e
-                            quit()
+                            sys.exit()
                 finally:        
                     file_handler.close()
                         
