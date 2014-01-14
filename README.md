@@ -1,7 +1,7 @@
 sync_web
 =======
 
-将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn)
+将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn或git)
 
 author: [ksc](http://blog.geekli.cn)
 
@@ -34,7 +34,7 @@ config.ini:
     local_webroot = D:/xampp/web/ 
     log_file = #不存储日志留空
     prompt=False #同步时是否需要确认，默认False，可空
-    paths= #多个目录用英文逗号"," 分割path1,path2 
+    paths= #相对(本地web目录)路径，多个目录用英文逗号"," 分割path1/subpath/,path2 
     
     
     [var]
@@ -42,7 +42,7 @@ config.ini:
 需要注意的是
 
 webroot
->比如 网站的绝对路径是 /var/www/web/ 但是ftp登陆后的根目录是/var/www/ 也就是说不能再往上走了
+>比如在服务器上网站的绝对路径是 /var/www/web/ 但是ftp登陆后的根目录是/var/www/ 也就是说不能再往上走了
 那么你的webroot 填写 /web/就可以了
 
 paths
@@ -51,9 +51,17 @@ paths
 另外程序是根据时间戳进行检测的，所以对那些修改名称（文件内容没有变化）的并不会检测到
 目录结构也尽量不要太复杂
 
+路径
+>配置文件中的路径不要使用反斜杠\\ 即使是在windows下 
+
+>忽略目录是按照路径的前几个字符匹配的
+若设置 exclude\_path= ign  则会忽略掉 ignore1/ ignore2/ 、igno/ 等目录
+
+>若不想这样的话 在目录后面加上斜杠 exclude\_path= ign/  
+
 ###计划
 
-* 配置文件中可设置忽略目录（优先级高）
+* <del>配置文件中可设置忽略目录（优先级高）</del>
 * <del>配置文件中可设置强制监测是否有修改的目录（即使该目录没有纳入版本控制）</del>
 * <del>添加更新时是否需要确认一遍要上传的文件</del>
 * <del>增加对git的支持</del>

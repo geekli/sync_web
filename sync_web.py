@@ -1,7 +1,7 @@
 # coding=utf-8
 
 """
-将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn)
+将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于版本控制系统)
 usage: sync_web config.ini
 author: ksc (http://blog.geekli.cn)
 version: 2.0
@@ -36,9 +36,14 @@ try:
     local_webroot =cf.get('local','local_webroot')
     conf['log_file'] = cf.get('local','log_file')
     conf['prompt'] = False #prompt before every sync
+    conf['exclude_path'] = [] 
+    
     if cf.has_option('local','prompt'):
         conf['prompt']=cf.getboolean('local','prompt')
-    
+        
+    if cf.has_option('local','exclude_path'):
+        conf['exclude_path']=string.split(cf.get('local','exclude_path'),',')
+
 except Exception,e:
     print 'Parse config file failed'
     print e
@@ -76,7 +81,8 @@ def getChangeFiles():
         line=line.rstrip()
         #print line
         if type=='svn':
-            files.append({'op':line[0:1],'file':line[8:]})
+            if line[8:]!='.':
+                files.append({'op':line[0:1],'file':line[8:]})
         else:
             files.append({'op':line[0:3],'file':line[3:]})
     return files
@@ -107,7 +113,7 @@ def walk_path(top):
     for root, dirs, files in os.walk(top, topdown=False):
         for name in files:
             f=os.path.join(root, name)
-            flist.append({'op':'n','file':f})
+            flist.append({'op':'a','file':f})
     return flist        
 
 
@@ -123,12 +129,21 @@ def getKcFiles():
         flist.extend(walk_path(path))
     return flist
 
+def tagExcludeFile(item):
+    """标记被排除的目录中的文件"""
+    global conf
+    for _path in conf['exclude_path']:
+        if _path==item['file'][0:len(_path)]:
+            item['op']='ex'
+    return item    
+        
 def prompt_sync(filelist):
     print
     for f in filelist:
-        print f['file']
+        if f['op']!='ex':
+            print f['file']
     y=raw_input('start sync?[Y/n]\n')
-    if y=='n':
+    if string.strip(y)=='n':
         sys.exit()
         
 class Ftp_sync:
@@ -210,10 +225,13 @@ class Ftp_sync:
         _bufsize=1024
        
         writeLogs('\n\n'+'start sync '+self.ftp_name+'\n')
+        print '-'*20
         for line in self.filelist:
             file=line['file'] 
-            fullname=self.local_webroot+file
             file= file.replace('\\','/')
+            fullname=self.local_webroot+file
+            if line['op']=='ex':
+                continue
             if not os.path.isfile(fullname):
                 continue
              
@@ -245,7 +263,7 @@ class Ftp_sync:
                                 self.ftp.cwd(_ftpdir)                               
                             self.ftp.cwd(self.ftp_webroot)
                             self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
-                            print 'upload success'
+                            print 'retry success'
                         except Exception,e:
                             print e
                             sys.exit()
@@ -262,6 +280,10 @@ class Ftp_sync:
         
 filelist=getChangeFiles()
 filelist.extend(getKcFiles())
+
+if conf['exclude_path']!=[]:
+    filelist=map(tagExcludeFile,filelist)
+    
 if conf['prompt']:
     prompt_sync(filelist)
     
