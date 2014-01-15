@@ -176,13 +176,14 @@ class Ftp_sync:
     def getLastTime(self):
         """返回最后一次同步的时间"""
         try:
-            ltime= cf.getfloat('var','lasttime')
+            ltime= cf.getfloat(self.ftp_name,'lasttime')
         except:
             return 0
         return ltime
         
     def setLastTime(self):
         """设置最后一次同步的时间"""
+        self.cf.set(self.ftp_name, "lasttime", time.time())
         self.cf.set("var", "lasttime", time.time())
         self.cf.write(open(self.config_file, "w"))
         
@@ -192,6 +193,7 @@ class Ftp_sync:
             ftp = FTPS()
         else:
             ftp = FTP()
+        print '-'*20+self.ftp_name+'-'*20
         print  'connect',('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port
         try:
             ftp.connect(self.ftp_host,self.ftp_port)
@@ -286,11 +288,13 @@ if conf['exclude_path']!=[]:
     
 if conf['prompt']:
     prompt_sync(filelist)
-    
-sync=Ftp_sync('ftp')
-sync.setFileList(filelist)
-sync.connect()
-sync.sync()
+
+for ftp in cf.sections():
+    if ftp[0:3]=='ftp':
+        sync=Ftp_sync(ftp)
+        sync.setFileList(filelist)
+        sync.connect()
+        sync.sync()
 
 time.sleep(2)
 

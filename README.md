@@ -1,7 +1,7 @@
 sync_web
 =======
 
-将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn或git)
+将本地的修改通过ftp一键同步到一台或多台服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn或git)
 
 author: [ksc](http://blog.geekli.cn)
 
@@ -29,6 +29,17 @@ config.ini:
     ssl = True #是否启用ssl
     webroot = /web/ #网址相对于ftp根目录的绝对地址 
     automkdir = true #若服务器上目录不存在是否自动建立
+    lasttime = 0 #或者是当前时间戳
+    
+    [ftp2]
+    host = test2.com #FTP主机地址
+    port = 21       #FTP端口
+    user = ftp_user #FTP 用户名
+    passwd = ftp_passwd
+    ssl = True #是否启用ssl
+    webroot = /web/ #网址相对于ftp根目录的绝对地址 
+    automkdir = true #若服务器上目录不存在是否自动建立
+    lasttime = 0 #或者是当前时间戳
     
     [local]
     local_webroot = D:/xampp/web/ 
@@ -38,7 +49,7 @@ config.ini:
     
     
     [var]
-    lasttime = 0 #或者是当前时间戳
+    lasttime = 0 #或者是当前时间戳，由于可同时传到了多台服务器，最后修改时间挪到了[ftp]部分去了。所以这里暂时没有用到
 需要注意的是
 
 webroot
@@ -50,6 +61,9 @@ paths
 也就是说即使版本控制忽略了该目录，只有该目录下有文件变动，也会自动上传到服务器
 另外程序是根据时间戳进行检测的，所以对那些修改名称（文件内容没有变化）的并不会检测到
 目录结构也尽量不要太复杂
+
+新增ftp
+>直接复制一份[ftp]节点内容,然后把对应的信息修改下，修改下节点名称，保证前三个字符是ftp就可以
 
 路径
 >配置文件中的路径不要使用反斜杠\\ 即使是在windows下 
@@ -65,4 +79,4 @@ paths
 * <del>配置文件中可设置强制监测是否有修改的目录（即使该目录没有纳入版本控制）</del>
 * <del>添加更新时是否需要确认一遍要上传的文件</del>
 * <del>增加对git的支持</del>
-* 支持同时同步到多台服务器上
+* <del>支持同时同步到多台服务器上</del>
