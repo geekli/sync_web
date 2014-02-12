@@ -1,11 +1,19 @@
 sync_web
 =======
 
-将本地的修改通过ftp一键同步到一台或多台服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于svn或git)
+将本地的修改通过ftp一键同步到一台或多台服务器上 ，**只同步修改内容**，非常适合维护一个网站并且经常改动代码的情况。
+
+监测文件变动依赖于svn或git，脚本自动检测当前项目所用的版本控制系统
 
 author: [ksc](http://blog.geekli.cn)
 
-用法: sync_web config.ini （若脚本所在目录下的config.ini则使用该文件）
+####使用方法:
+ sync_web 配置文件路径 
+ 
+ 如： 
+> sync_web /etc/syncweb/config.ini
+
+若脚本所在目录下存在config.ini则默认使用该文件做配置文件
 
 > 需要安装python2.7环境与**svn**|**git**客户端（确保**svn**|**git**命令所在目录加入到环境变量path中，即在终端下可以执行）
 
@@ -18,7 +26,7 @@ author: [ksc](http://blog.geekli.cn)
 
 
  
-配置文件格式如下
+####配置文件格式
 config.ini:
 
     [ftp]
@@ -80,3 +88,4 @@ paths
 * <del>添加更新时是否需要确认一遍要上传的文件</del>
 * <del>增加对git的支持</del>
 * <del>支持同时同步到多台服务器上</del>
+* 可通过命令行同步单个文件到服务器
