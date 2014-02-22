@@ -21,13 +21,13 @@ else:#use default test config file
     config_file='config.ini'
     
 if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
-    config_file=os.path.realpath(os.path.dirname(script_path)+os.sep+config_file)
+    config_file=os.path.realpath(os.getcwd()+os.sep+config_file)
+
+print('config: '+config_file )
     
 if os.path.isfile(config_file)==False:
     print('config file does not exist')
     sys.exit()    
-
-print('config: '+config_file )
 
 conf={}
 cf = ConfigParser.ConfigParser()
@@ -44,7 +44,7 @@ try:
     if cf.has_option('local','exclude_path'):
         conf['exclude_path']=string.split(cf.get('local','exclude_path'),',')
 
-except Exception,e:
+except Exception as e:
     print('Parse config file failed')
     print(e)
     sys.exit()
@@ -162,7 +162,7 @@ class Ftp_sync:
             self.ftp_webroot = cf.get(ftp_name,'webroot')
             self.ftp_ssl     = cf.getboolean(ftp_name,'ssl')
             self.automkdir   = cf.getboolean(ftp_name,'automkdir')
-        except Exception,e:
+        except Exception as e:
             print('Parse config file failed in ['+ftp_name+']')
             print(e)
             sys.exit()
@@ -194,17 +194,17 @@ class Ftp_sync:
         else:
             ftp = FTP()
         print('-'*20+self.ftp_name+'-'*20)
-        print('connect'+('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port)
+        print('connect '+('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port)
         try:
             ftp.connect(self.ftp_host,self.ftp_port)
-        except Exception,e:
+        except Exception as e:
             print (e)
             print ('connect ftp server failed')
             sys.exit()
         try:
             ftp.login(self.ftp_user,self.ftp_passwd)
             print ('login ok')
-        except Exception,e:#可能服务器不支持ssl,或者用户名密码不正确
+        except Exception as e:#可能服务器不支持ssl,或者用户名密码不正确
             print (e)
             print ('Username or password are not correct')
             sys.exit()        
@@ -212,7 +212,7 @@ class Ftp_sync:
         if self.ftp_ssl:
             try:    
                 ftp.prot_p()
-            except Exception,e:
+            except Exception as e:
                 print (e)
                 print ('Make sure the SSL is on ;')
             
@@ -249,7 +249,7 @@ class Ftp_sync:
                 ftp_file=self.ftp_webroot+file
                 try:
                     self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
-                except Exception,e:
+                except Exception as e:
                     #print(e)
                     if self.automkdir== False:
                         sys.exit()
@@ -266,7 +266,7 @@ class Ftp_sync:
                             self.ftp.cwd(self.ftp_webroot)
                             self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
                             print('retry success')
-                        except Exception,e:
+                        except Exception as e:
                             print(e)
                             sys.exit()
                 finally:        
