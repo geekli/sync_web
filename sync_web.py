@@ -24,10 +24,10 @@ if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
     config_file=os.path.realpath(os.path.dirname(script_path)+os.sep+config_file)
     
 if os.path.isfile(config_file)==False:
-    print 'config file does not exist'
+    print('config file does not exist')
     sys.exit()    
 
-print 'config: ',config_file    
+print('config: '+config_file )
 
 conf={}
 cf = ConfigParser.ConfigParser()
@@ -45,8 +45,8 @@ try:
         conf['exclude_path']=string.split(cf.get('local','exclude_path'),',')
 
 except Exception,e:
-    print 'Parse config file failed'
-    print e
+    print('Parse config file failed')
+    print(e)
     sys.exit()
     
 #本地项目目录
@@ -67,7 +67,7 @@ def getChangeFiles():
         type='git'
         sh='git status -s'
     else:
-        print 'no version control'
+        print('no version control')
         sys.exit()
         
     os.chdir(local_webroot)
@@ -79,7 +79,7 @@ def getChangeFiles():
     files=[]
     for line in pipe.stdout:
         line=line.rstrip()
-        #print line
+        #print(line)
         if type=='svn':
             if line[8:]!='.':
                 files.append({'op':line[0:1],'file':line[8:]})
@@ -138,7 +138,7 @@ def tagExcludeFile(item):
     return item    
         
 def prompt_sync(filelist):
-    print
+    print()
     for f in filelist:
         if f['op']!='ex':
             print f['file']
@@ -163,8 +163,8 @@ class Ftp_sync:
             self.ftp_ssl     = cf.getboolean(ftp_name,'ssl')
             self.automkdir   = cf.getboolean(ftp_name,'automkdir')
         except Exception,e:
-            print 'Parse config file failed in ['+ftp_name+']'
-            print e
+            print('Parse config file failed in ['+ftp_name+']')
+            print(e)
             sys.exit()
         self.lastUploadTime=self.getLastTime()
         self.filelist=[]
@@ -193,32 +193,32 @@ class Ftp_sync:
             ftp = FTPS()
         else:
             ftp = FTP()
-        print '-'*20+self.ftp_name+'-'*20
-        print  'connect',('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port
+        print('-'*20+self.ftp_name+'-'*20)
+        print('connect'+('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port)
         try:
             ftp.connect(self.ftp_host,self.ftp_port)
         except Exception,e:
-            print e
-            print 'connect ftp server failed'
+            print (e)
+            print ('connect ftp server failed')
             sys.exit()
         try:
             ftp.login(self.ftp_user,self.ftp_passwd)
-            print 'login ok'    
+            print ('login ok')
         except Exception,e:#可能服务器不支持ssl,或者用户名密码不正确
-            print e
-            print 'Username or password are not correct'
+            print (e)
+            print ('Username or password are not correct')
             sys.exit()        
         
         if self.ftp_ssl:
             try:    
                 ftp.prot_p()
             except Exception,e:
-                print e
-                print 'Make sure the SSL is on ;'
+                print (e)
+                print ('Make sure the SSL is on ;')
             
-        print ftp.getwelcome()
+        print(ftp.getwelcome())
         ftp.cwd(self.ftp_webroot)
-        print 'current path: '+ftp.pwd()
+        print('current path: '+ftp.pwd())
         
         self.ftp=ftp
     
@@ -227,7 +227,7 @@ class Ftp_sync:
         _bufsize=1024
        
         writeLogs('\n\n'+'start sync '+self.ftp_name+'\n')
-        print '-'*20
+        print('-'*20)
         for line in self.filelist:
             file=line['file'] 
             file= file.replace('\\','/')
@@ -244,18 +244,18 @@ class Ftp_sync:
      
                 _uploadNum=_uploadNum+1
                 writeLogs(fullname,True)
-                print file
+                print(file)
                 file_handler = open(fullname,'rb')
                 ftp_file=self.ftp_webroot+file
                 try:
                     self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
                 except Exception,e:
-                    #print e
+                    #print(e)
                     if self.automkdir== False:
                         sys.exit()
                     else:# make dir and try again
                         try:
-                            print 'try mkdir: '+os.path.dirname(file)
+                            print('try mkdir: '+os.path.dirname(file))
                             ftpdirs=os.path.dirname(file).split('/')
                             for _ftpdir in ftpdirs:
                                 try:
@@ -265,9 +265,9 @@ class Ftp_sync:
                                 self.ftp.cwd(_ftpdir)                               
                             self.ftp.cwd(self.ftp_webroot)
                             self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
-                            print 'retry success'
+                            print('retry success')
                         except Exception,e:
-                            print e
+                            print(e)
                             sys.exit()
                 finally:        
                     file_handler.close()
@@ -278,7 +278,7 @@ class Ftp_sync:
             writeLogs('共上传'+str(_uploadNum)+'个文件')
         else:
             writeLogs('没有上传文件')
-        print 'success';
+        print('success');
         
 filelist=getChangeFiles()
 filelist.extend(getKcFiles())
