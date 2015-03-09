@@ -53,7 +53,7 @@ config.ini:
     local_webroot = D:/xampp/web/ 
     log_file = #不存储日志留空
     prompt=False #同步时是否需要确认，默认False，可空
-    paths= #相对(本地web目录)路径，多个目录用英文逗号"," 分割path1/subpath/,path2 
+    paths= #不依赖版本控制的监控路径【目录/文件】 （相对(本地web目录)路径，多个目录用英文逗号"," 分割path1/subpath/,path2 ）
     
     
     [var]
@@ -89,3 +89,4 @@ paths
 * <del>增加对git的支持</del>
 * <del>支持同时同步到多台服务器上</del>
 * 可通过命令行同步单个文件到服务器
+* 上传文件可运行外部程序对文件进行处理（删除注释、压缩等）
