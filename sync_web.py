@@ -4,8 +4,6 @@
 将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于版本控制系统)
 usage: sync_web config.ini
 author: ksc (http://blog.geekli.cn)
-version: 2.0
-
 """
 import os,time,sys
 import stat
@@ -15,6 +13,9 @@ from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
 script_path=sys.argv[0]
+version= '2.1.2'
+if '-v' in sys.argv:
+    sys.exit(str(version))
 if len(sys.argv)==2:
     config_file=sys.argv[1]
 else:#use default test config file
@@ -52,6 +53,7 @@ except Exception as e:
 #本地项目目录
 local_webroot=os.path.realpath(local_webroot)+os.sep
 
+os.chdir(local_webroot)
 #依赖版本控制系统获取变动文件列表
 def getChangeFiles():
     """
@@ -70,7 +72,7 @@ def getChangeFiles():
         print('no version control')
         sys.exit()
         
-    os.chdir(local_webroot)
+
     #导出修改的文件列表
     pipe=subprocess.Popen(sh, shell=True,stdout=subprocess.PIPE)
     pipe.wait()
@@ -81,8 +83,12 @@ def getChangeFiles():
         line=line.rstrip()
         #print(line)
         if type=='svn':
-            if line[8:]!='.':
-                files.append({'op':line[0:1],'file':line[8:]})
+            if line=='':
+                break
+            op=line[0:1]    
+            if line[8:]!='.' and op in ['A','M']:
+                files.append({'op':op ,'file':line[8:]})
+            
         else:
             files.append({'op':line[0:3],'file':line[3:]})
     return files
@@ -107,8 +113,7 @@ def walk_path(top):
         格式同 getSvnFiles()的返回值
         example:[{'file': 'upload/images/a.jpg', 'op': '?'},...]
     """
-    global local_webroot
-    os.chdir(local_webroot)
+
     flist=[]
     for root, dirs, files in os.walk(top, topdown=False):
         for name in files:
@@ -122,26 +127,29 @@ def getKcFiles():
     global cf
     if cf.has_option('local','paths')==False:
         return []
-    flist=[]    
+    flist=[]
     paths=cf.get('local','paths')
     paths=string.split(paths,',')
     for path in paths:
-        flist.extend(walk_path(path))
+        if os.path.isfile(path):
+            flist.append({'op':'a','file':path})
+        else:
+            flist.extend(walk_path(path))
     return flist
 
 def tagExcludeFile(item):
     """标记被排除的目录中的文件"""
     global conf
     for _path in conf['exclude_path']:
-        if _path==item['file'][0:len(_path)]:
+        if _path==item['file'][0:len(_path)].replace('\\','/'):
             item['op']='ex'
     return item    
         
 def prompt_sync(filelist):
-    print()
+    
     for f in filelist:
         if f['op']!='ex':
-            print f['file']
+            print( f['file'])
     y=raw_input('start sync?[Y/n]\n')
     if string.strip(y)=='n':
         sys.exit()
@@ -285,7 +293,7 @@ filelist.extend(getKcFiles())
 
 if conf['exclude_path']!=[]:
     filelist=map(tagExcludeFile,filelist)
-    
+
 if conf['prompt']:
     prompt_sync(filelist)
 
