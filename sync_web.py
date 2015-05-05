@@ -9,6 +9,7 @@ import os,time,sys
 import stat
 import string
 import subprocess
+import shutil
 from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
@@ -37,10 +38,14 @@ try:
     local_webroot =cf.get('local','local_webroot')
     conf['log_file'] = cf.get('local','log_file')
     conf['prompt'] = False #prompt before every sync
+    conf['local_backup_path'] = False  
     conf['exclude_path'] = [] 
     
     if cf.has_option('local','prompt'):
         conf['prompt']=cf.getboolean('local','prompt')
+    
+    if cf.has_option('local','local_backup_path'):
+        conf['local_backup_path']=cf.get('local','local_backup_path')
         
     if cf.has_option('local','exclude_path'):
         conf['exclude_path']=string.split(cf.get('local','exclude_path'),',')
@@ -153,8 +158,42 @@ def prompt_sync(filelist):
     y=raw_input('start sync?[Y/n]\n')
     if string.strip(y)=='n':
         sys.exit()
+
+def clearLocalBackupPath(backupPath):  
+
+    if not os.path.isdir(backupPath):
+        return
+    confirmFile=os.path.join(backupPath,'confirm_remove_allfile')    
+    if not os.path.isfile(confirmFile):
+        y=raw_input('delete all file in %s ?[Y/n]\n'%backupPath)
+        if string.strip(y)=='n':
+            return 
+    shutil.rmtree(backupPath)
+    os.mkdir(backupPath)
+  
+    open(confirmFile,'w').close()
+    
+def saveChangedFile(backupPath, filelist):
+    #print('start backup')
+    for file in filelist:
         
+        file=file.get('file')
+        src_file=os.path.join(local_webroot,file)
+        if not os.path.isfile(src_file):
+            continue
+        #print(file)
+        dst_file=os.path.join(backupPath, file)
+        dst_path=os.path.dirname(dst_file)
+        if not os.path.isdir(dst_path):
+            #print('mkdir:'+dst_path)
+            os.makedirs(dst_path)
+        shutil.copyfile(src_file, dst_file)
+    print('Backup done')
+    #quit();
+  
 class Ftp_sync:
+    uploadFileList=[]#本次上传的文件列表
+    
     def __init__(self,ftp_name):
         global config_file,local_webroot,cf
         self.bufsize = 1024
@@ -252,6 +291,7 @@ class Ftp_sync:
      
                 _uploadNum=_uploadNum+1
                 writeLogs(fullname,True)
+                self.uploadFileList.append(file)
                 print(file)
                 file_handler = open(fullname,'rb')
                 ftp_file=self.ftp_webroot+file
@@ -296,7 +336,12 @@ if conf['exclude_path']!=[]:
 
 if conf['prompt']:
     prompt_sync(filelist)
+    
 
+if conf['local_backup_path']:
+    clearLocalBackupPath(conf['local_backup_path'])
+    saveChangedFile(conf['local_backup_path'], filelist)
+    
 for ftp in cf.sections():
     if ftp[0:3]=='ftp':
         sync=Ftp_sync(ftp)

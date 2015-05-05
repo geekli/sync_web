@@ -54,6 +54,7 @@ config.ini:
     log_file = #不存储日志留空
     prompt=False #同步时是否需要确认，默认False，可空
     paths= #不依赖版本控制的监控路径【目录/文件】 （相对(本地web目录)路径，多个目录用英文逗号"," 分割path1/subpath/,path2 ）
+    local_backup_path= #每次同步，变动的文件临时存放目录
     
     
     [var]
