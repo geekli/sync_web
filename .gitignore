@@ -1,1 +1,5 @@
 /*.ini
+build/
+dist/
+sync_web.bat
+*.spec
