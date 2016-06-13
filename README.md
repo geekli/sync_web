@@ -21,7 +21,7 @@ author: [ksc](http://blog.geekli.cn)
    
 > 1. 右击脚本-\>发送到桌面快捷方式
 > 2. 右击快捷方式点击属性 修改**目标**一栏
-> 3. 在脚本路径后面添加配置文件路径 例如D:\\Python27\\test\\sync_web.py D:\\temp\\upload_file\\config.ini
+> 3. 在脚本路径后面添加配置文件路径 例如 D:\\SyncWeb\\sync_web.py D:\\temp\\syncweb-config.ini
 
 
 
@@ -89,5 +89,6 @@ paths
 * <del>添加更新时是否需要确认一遍要上传的文件</del>
 * <del>增加对git的支持</del>
 * <del>支持同时同步到多台服务器上</del>
+* <del>同步指定版本中变动的文件列表到服务器(文件内容以本地为准)</del>
 * 可通过命令行同步单个文件到服务器
 * 上传文件可运行外部程序对文件进行处理（删除注释、压缩等）

@@ -10,18 +10,22 @@ import stat
 import string
 import subprocess
 import shutil
+import argparse
 from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
 script_path=sys.argv[0]
-version= '2.1.2'
-if '-v' in sys.argv:
-    sys.exit(str(version))
-if len(sys.argv)==2:
-    config_file=sys.argv[1]
-else:#use default test config file
-    config_file='config.ini'
-    
+version= '2.2.0'
+ 
+parser = argparse.ArgumentParser()
+parser.add_argument('-v','--version', action='version', version=version, help="show program's version number and exit")
+parser.add_argument('config_file',        default='config.ini', nargs='?',  help=u'配置文件路径')
+parser.add_argument('-r', '--reversions', default='', nargs='?',help=u'同步指定版本中变动的文件列表（内容以本地文件为准）')
+parser.add_argument('-P', '--prompt',     default=False,action='store_true',help=u'是否显示需要同步的文件列表')
+
+args = parser.parse_args()
+#print args;quit()    
+config_file=args.config_file
 if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
     config_file=os.path.realpath(os.getcwd()+os.sep+config_file)
 
@@ -59,6 +63,16 @@ except Exception as e:
 local_webroot=os.path.realpath(local_webroot)+os.sep
 
 os.chdir(local_webroot)
+
+IS_SVN=False
+if os.path.isdir(local_webroot+'.svn'):
+    IS_SVN=True
+elif os.path.isdir(local_webroot+'.git'):
+    IS_SVN=False
+else:
+    print('no version control')
+    sys.exit()
+    
 #依赖版本控制系统获取变动文件列表
 def getChangeFiles():
     """
@@ -67,15 +81,10 @@ def getChangeFiles():
             example: [{'file': 'upload/images/a.jpg', 'op': '?'},...]
     """
     global local_webroot
-    if os.path.isdir(local_webroot+'.svn'):
-        type='svn'
+    if IS_SVN:
         sh='svn st'
-    elif os.path.isdir(local_webroot+'.git'):
-        type='git'
-        sh='git status -s'
     else:
-        print('no version control')
-        sys.exit()
+        sh='git status -s'
         
 
     #导出修改的文件列表
@@ -87,7 +96,7 @@ def getChangeFiles():
     for line in pipe.stdout:
         line=line.rstrip()
         #print(line)
-        if type=='svn':
+        if IS_SVN:
             if line=='':
                 break
             op=line[0:1]    
@@ -96,6 +105,27 @@ def getChangeFiles():
             
         else:
             files.append({'op':line[0:3],'file':line[3:]})
+    return files
+    
+def getReversionsFile(version):
+    """只上传指定版本修改的文件 暂时只支持svn
+    """
+    if not IS_SVN:
+        sys.exit('`-r` not support except svn')
+    
+    pipe=subprocess.Popen(['svn','log','-v','-r',str(version)], stdout=subprocess.PIPE)
+    pipe.wait()
+    if pipe.returncode > 0:
+        sys.exit()
+    files=[]
+    for line in pipe.stdout:
+        line=line.strip()
+        #print(line)
+        if line=='':
+            break
+        op=line[0:1]    
+        if line[8:]!='.' and op in ['A','M']:
+            files.append({'op':op ,'file':line[2:]})
     return files
 
 def writeLogs(str,showTime = False ):
@@ -193,7 +223,7 @@ def saveChangedFile(backupPath, filelist):
   
 class Ftp_sync:
     uploadFileList=[]#本次上传的文件列表
-    
+    checkMTime=True#是否检查文件修改时间
     def __init__(self,ftp_name):
         global config_file,local_webroot,cf
         self.bufsize = 1024
@@ -287,7 +317,7 @@ class Ftp_sync:
             _st=os.stat(fullname)
             st_mtime = _st[stat.ST_MTIME]
             
-            if st_mtime > self.lastUploadTime:#如果从上次上传后，文件修改过
+            if not self.checkMTime or st_mtime > self.lastUploadTime:#如果不检查文件修改时间 或 从上次上传后，文件修改过
      
                 _uploadNum=_uploadNum+1
                 writeLogs(fullname,True)
@@ -327,14 +357,19 @@ class Ftp_sync:
         else:
             writeLogs('没有上传文件')
         print('success');
-        
-filelist=getChangeFiles()
-filelist.extend(getKcFiles())
-
+     
+if args.reversions=='':     
+    filelist=getChangeFiles()
+    filelist.extend(getKcFiles())
+else:
+    filelist=[]
+    for _reversions in args.reversions.split(','):
+        filelist.extend(getReversionsFile(_reversions))
+    
 if conf['exclude_path']!=[]:
     filelist=map(tagExcludeFile,filelist)
 
-if conf['prompt']:
+if conf['prompt'] or args.reversions:
     prompt_sync(filelist)
     
 
@@ -345,6 +380,8 @@ if conf['local_backup_path']:
 for ftp in cf.sections():
     if ftp[0:3]=='ftp':
         sync=Ftp_sync(ftp)
+        if args.reversions:
+            sync.checkMTime=False
         sync.setFileList(filelist)
         sync.connect()
         sync.sync()
