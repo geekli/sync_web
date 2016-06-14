@@ -108,12 +108,13 @@ def getChangeFiles():
     return files
     
 def getReversionsFile(version):
-    """只上传指定版本修改的文件 暂时只支持svn
+    """只上传指定版本修改的文件
     """
-    if not IS_SVN:
-        sys.exit('`-r` not support except svn')
-    
-    pipe=subprocess.Popen(['svn','log','-v','-r',str(version)], stdout=subprocess.PIPE)
+    if IS_SVN:
+        sh=['svn','log','-v','-r',str(version)]
+    else:
+        sh=['git', 'log', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"', '-1']
+    pipe=subprocess.Popen(sh, stdout=subprocess.PIPE)
     pipe.wait()
     if pipe.returncode > 0:
         sys.exit()
@@ -369,7 +370,7 @@ else:
 if conf['exclude_path']!=[]:
     filelist=map(tagExcludeFile,filelist)
 
-if conf['prompt'] or args.reversions:
+if conf['prompt'] or args.prompt:
     prompt_sync(filelist)
     
 
