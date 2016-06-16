@@ -11,17 +11,19 @@ import string
 import subprocess
 import shutil
 import argparse
+import socket
 from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
 script_path=sys.argv[0]
-version= '2.2.0'
+version= '2.2.1'
  
 parser = argparse.ArgumentParser()
 parser.add_argument('-v','--version', action='version', version=version, help="show program's version number and exit")
 parser.add_argument('config_file',        default='config.ini', nargs='?',  help=u'配置文件路径')
 parser.add_argument('-r', '--reversions', default='', nargs='?',help=u'同步指定版本中变动的文件列表（内容以本地文件为准）')
 parser.add_argument('-P', '--prompt',     default=False,action='store_true',help=u'是否显示需要同步的文件列表')
+parser.add_argument('-NCT', '--checkMTime',     default=True,action='store_false',help=u'是否检查文件修改时间')
 
 args = parser.parse_args()
 #print args;quit()    
@@ -313,6 +315,7 @@ class Ftp_sync:
             if line['op']=='ex':
                 continue
             if not os.path.isfile(fullname):
+                print('the file `%s` does not exist'%fullname)
                 continue
              
             _st=os.stat(fullname)
@@ -328,6 +331,9 @@ class Ftp_sync:
                 ftp_file=self.ftp_webroot+file
                 try:
                     self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
+                except socket.error as e:
+                    print('socket.error %s'%e)
+                    sys.exit()
                 except Exception as e:
                     #print(e)
                     if self.automkdir== False:
@@ -381,7 +387,7 @@ if conf['local_backup_path']:
 for ftp in cf.sections():
     if ftp[0:3]=='ftp':
         sync=Ftp_sync(ftp)
-        if args.reversions:
+        if args.reversions or not args.checkMTime:
             sync.checkMTime=False
         sync.setFileList(filelist)
         sync.connect()
