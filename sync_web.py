@@ -304,7 +304,6 @@ class Ftp_sync:
     
     def sync(self):
         _uploadNum = 0
-        _bufsize=1024
        
         writeLogs('\n\n'+'start sync '+self.ftp_name+'\n')
         print('-'*20)
@@ -313,6 +312,9 @@ class Ftp_sync:
             file= file.replace('\\','/')
             fullname=self.local_webroot+file
             if line['op']=='ex':
+                continue
+            if os.path.isdir(fullname):
+                print('`%s` is directory'%fullname)
                 continue
             if not os.path.isfile(fullname):
                 print('the file `%s` does not exist'%fullname)
@@ -330,7 +332,7 @@ class Ftp_sync:
                 file_handler = open(fullname,'rb')
                 ftp_file=self.ftp_webroot+file
                 try:
-                    self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
+                    self.ftp.storbinary('STOR '+ftp_file,file_handler,self.bufsize) 
                 except socket.error as e:
                     print('socket.error %s'%e)
                     sys.exit()
@@ -349,7 +351,7 @@ class Ftp_sync:
                                     pass #忽略创建目录的错误
                                 self.ftp.cwd(_ftpdir)                               
                             self.ftp.cwd(self.ftp_webroot)
-                            self.ftp.storbinary('STOR '+ftp_file,file_handler,_bufsize) 
+                            self.ftp.storbinary('STOR '+ftp_file,file_handler,self.bufsize) 
                             print('retry success')
                         except Exception as e:
                             print(e)
