@@ -1,5 +1,5 @@
 # coding=utf-8
-
+from __future__ import print_function
 """
 将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于版本控制系统)
 usage: sync_web config.ini
@@ -16,23 +16,30 @@ from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
 import ConfigParser
 script_path=sys.argv[0]
-version= '2.2.1'
+version= '2.3.0'
  
 parser = argparse.ArgumentParser()
 parser.add_argument('-v','--version', action='version', version=version, help="show program's version number and exit")
 parser.add_argument('config_file',        default='config.ini', nargs='?',  help=u'配置文件路径')
+parser.add_argument('-c', '--config_name',default=None, nargs='?',  help=u'配置文件名称')
 parser.add_argument('-r', '--reversions', default='', nargs='?',help=u'同步指定版本中变动的文件列表（内容以本地文件为准）')
+parser.add_argument('-l', '--last',       default=False,  nargs='?',help=u'同步最近n个版本的变动文件（内容以本地文件为准）')
+parser.add_argument('-f', '--filepath',   default='', nargs='?',help=u'同步指定版本中变动的文件列表（内容以本地文件为准）')
 parser.add_argument('-P', '--prompt',     default=False,action='store_true',help=u'是否显示需要同步的文件列表')
 parser.add_argument('-NCT', '--checkMTime',     default=True,action='store_false',help=u'是否检查文件修改时间')
 
 args = parser.parse_args()
-#print args;quit()    
+#print(args);quit()    
 config_file=args.config_file
+
+if args.config_name:
+    config_file=os.path.join(os.path.dirname(script_path),'config-%s.ini'%(args.config_name))
+    
 if os.path.isabs(config_file)==False:#若是相对路径，则转化为绝对的
     config_file=os.path.realpath(os.getcwd()+os.sep+config_file)
 
 print('config: '+config_file )
-    
+
 if os.path.isfile(config_file)==False:
     print('config file does not exist')
     sys.exit()    
@@ -64,7 +71,7 @@ except Exception as e:
 #本地项目目录
 local_webroot=os.path.realpath(local_webroot)+os.sep
 
-os.chdir(local_webroot)
+
 
 IS_SVN=False
 if os.path.isdir(local_webroot+'.svn'):
@@ -91,11 +98,11 @@ def getChangeFiles():
 
     #导出修改的文件列表
     pipe=subprocess.Popen(sh, shell=True,stdout=subprocess.PIPE)
-    pipe.wait()
+    stdout,stderr=pipe.communicate()
     if pipe.returncode > 0:
-        sys.exit()
+        sys.exit(1)
     files=[]
-    for line in pipe.stdout:
+    for line in stdout.split('\n'):
         line=line.rstrip()
         #print(line)
         if IS_SVN:
@@ -113,19 +120,23 @@ def getReversionsFile(version):
     """只上传指定版本修改的文件
     """
     if IS_SVN:
-        sh=['svn','log','-v','-r',str(version)]
+        sh=['svn','log','-v']
+        if version.startswith('last:'):#最近n个版本
+            sh+=['-l',str(int(version.split(':')[1]))]
+        else:
+            sh+=['-r',str(version)]
     else:
         sh=['git', 'log', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"', '-1']
-    pipe=subprocess.Popen(sh, stdout=subprocess.PIPE)
-    pipe.wait()
-    if pipe.returncode > 0:
-        sys.exit()
+
+    pipe=subprocess.Popen(sh, stdout=subprocess.PIPE, shell=True)
+    
     files=[]
-    for line in pipe.stdout:
+    stdout,stderr=pipe.communicate()
+    if pipe.returncode > 0:
+        sys.exit(1)
+    for line in stdout.split('\n'):
         line=line.strip()
         #print(line)
-        if line=='':
-            break
         op=line[0:1]    
         if line[8:]!='.' and op in ['A','M']:
             files.append({'op':op ,'file':line[2:]})
@@ -223,7 +234,15 @@ def saveChangedFile(backupPath, filelist):
         shutil.copyfile(src_file, dst_file)
     print('Backup done')
     #quit();
-  
+def filter_repeat_file(filelist):
+    '''过滤重复的文件'''
+    _list=[]
+    _flist=[]
+    for file in filelist:
+        if file['file'] not in _flist:
+            _list.append(file)
+            _flist.append(file['file'])
+    return _list        
 class Ftp_sync:
     uploadFileList=[]#本次上传的文件列表
     checkMTime=True#是否检查文件修改时间
@@ -367,17 +386,34 @@ class Ftp_sync:
             writeLogs('没有上传文件')
         print('success');
      
-if args.reversions=='':     
-    filelist=getChangeFiles()
-    filelist.extend(getKcFiles())
-else:
+if args.filepath:#指定同步单个文件
+    _filepath=args.filepath
+    if not os.path.isabs(_filepath):
+        _filepath=os.path.realpath(_filepath)
+    if not os.path.isfile(_filepath):
+        print('File does not exist')
+        sys.exit()
+    filelist=[]    
+    filelist.append({'op':'F','file':_filepath.replace(local_webroot,'')})#相对网站根目录的路径
+
+elif args.last!=False:#同步最近n个版本
+    args.last=1 if args.last==None else args.last
+    filelist=getReversionsFile('last:%s'%(args.last))
+    
+elif args.reversions!='':#同步指定版本
+    os.chdir(local_webroot)
     filelist=[]
     for _reversions in args.reversions.split(','):
         filelist.extend(getReversionsFile(_reversions))
+else:
+    os.chdir(local_webroot)
+    filelist=getChangeFiles()
+    filelist.extend(getKcFiles())
     
 if conf['exclude_path']!=[]:
     filelist=map(tagExcludeFile,filelist)
 
+filelist=filter_repeat_file(filelist)    
 if conf['prompt'] or args.prompt:
     prompt_sync(filelist)
     
@@ -389,7 +425,7 @@ if conf['local_backup_path']:
 for ftp in cf.sections():
     if ftp[0:3]=='ftp':
         sync=Ftp_sync(ftp)
-        if args.reversions or not args.checkMTime:
+        if args.reversions or args.filepath or not args.checkMTime:
             sync.checkMTime=False
         sync.setFileList(filelist)
         sync.connect()
