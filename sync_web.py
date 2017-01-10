@@ -53,6 +53,7 @@ try:
     conf['prompt'] = False #prompt before every sync
     conf['local_backup_path'] = False  
     conf['exclude_path'] = [] 
+    conf['include_path'] = [] 
     
     if cf.has_option('local','prompt'):
         conf['prompt']=cf.getboolean('local','prompt')
@@ -62,6 +63,9 @@ try:
         
     if cf.has_option('local','exclude_path'):
         conf['exclude_path']=string.split(cf.get('local','exclude_path'),',')
+        
+    if cf.has_option('local','include_path'):
+        conf['include_path']=string.split(cf.get('local','include_path'),',')
 
 except Exception as e:
     print('Parse config file failed')
@@ -120,7 +124,7 @@ def getReversionsFile(version):
     """只上传指定版本修改的文件
     """
     if IS_SVN:
-        sh=['svn','log','-v']
+        sh=['svn','log','-qv']
         if version.startswith('last:'):#最近n个版本
             sh+=['-l',str(int(version.split(':')[1]))]
         else:
@@ -139,7 +143,10 @@ def getReversionsFile(version):
         #print(line)
         op=line[0:1]    
         if line[8:]!='.' and op in ['A','M']:
-            files.append({'op':op ,'file':line[2:]})
+            _file=line[2:]
+            if _file.find(' (from'):#svn rename 操作有日志会有 new.txt (from old.txt) 格式
+                _file=_file.split(' (from')[0]
+            files.append({'op':op ,'file':_file})
     return files
 
 def writeLogs(str,showTime = False ):
@@ -249,6 +256,7 @@ class Ftp_sync:
     def __init__(self,ftp_name):
         global config_file,local_webroot,cf
         self.bufsize = 1024
+        self.timeout = 10
         self.cf = cf
         self.config_file = config_file
         self.local_webroot = local_webroot
@@ -295,7 +303,7 @@ class Ftp_sync:
         print('-'*20+self.ftp_name+'-'*20)
         print('connect '+('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port)
         try:
-            ftp.connect(self.ftp_host,self.ftp_port)
+            ftp.connect(self.ftp_host,self.ftp_port, self.timeout)
         except Exception as e:
             print (e)
             print ('connect ftp server failed')
@@ -342,7 +350,8 @@ class Ftp_sync:
             _st=os.stat(fullname)
             st_mtime = _st[stat.ST_MTIME]
             
-            if not self.checkMTime or st_mtime > self.lastUploadTime:#如果不检查文件修改时间 或 从上次上传后，文件修改过
+            #如果强制上传 或不检查文件修改时间 或 从上次上传后，文件修改过
+            if line['op']=='FU' or not self.checkMTime or st_mtime > self.lastUploadTime:
      
                 _uploadNum=_uploadNum+1
                 writeLogs(fullname,True)
@@ -397,6 +406,7 @@ if args.filepath:#指定同步单个文件
     filelist.append({'op':'F','file':_filepath.replace(local_webroot,'')})#相对网站根目录的路径
 
 elif args.last!=False:#同步最近n个版本
+    os.chdir(local_webroot)
     args.last=1 if args.last==None else args.last
     filelist=getReversionsFile('last:%s'%(args.last))
     
@@ -412,6 +422,11 @@ else:
     
 if conf['exclude_path']!=[]:
     filelist=map(tagExcludeFile,filelist)
+
+if conf['include_path']:
+    for _ in conf['include_path']:
+        if os.path.isfile(_):
+            filelist.append({'op':'FU','file':_})
 
 filelist=filter_repeat_file(filelist)    
 if conf['prompt'] or args.prompt:
