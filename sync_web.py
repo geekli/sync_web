@@ -197,10 +197,13 @@ def tagExcludeFile(item):
     """标记被排除的目录中的文件"""
     global conf
     for _path in conf['exclude_path']:
-        if _path==item['file'][0:len(_path)].replace('\\','/'):
+        #将文件路径处理成path/too/foo.txt格式
+        _fullpath=item['file'].replace('\\','/')[1:]
+        if _fullpath.startswith(_path):
             item['op']='ex'
+            print('EXCLUDE',item['file'])
     return item    
-        
+ 
 def prompt_sync(filelist):
     
     for f in filelist:
