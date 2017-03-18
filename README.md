@@ -55,7 +55,7 @@ config.ini:
     prompt=False #同步时是否需要确认，默认False，可空
     paths= #不依赖版本控制的监控路径【目录/文件】 （相对(本地web目录)路径，多个目录用英文逗号"," 分割path1/subpath/,path2 ）
     local_backup_path= #每次同步，变动的文件临时存放目录
-    
+    include_path = #强制同步的文件，不检查是否变动
     
     [var]
     lasttime = 0 #或者是当前时间戳，由于可同时传到了多台服务器，最后修改时间挪到了[ftp]部分去了。所以这里暂时没有用到
