@@ -24,7 +24,7 @@ parser.add_argument('config_file',        default='config.ini', nargs='?',  help
 parser.add_argument('-c', '--config_name',default=None, nargs='?',  help=u'配置文件名称')
 parser.add_argument('-r', '--reversions', default='', nargs='?',help=u'同步指定版本中变动的文件列表（内容以本地文件为准）')
 parser.add_argument('-l', '--last',       default=False,  nargs='?',help=u'同步最近n个版本的变动文件（内容以本地文件为准）')
-parser.add_argument('-f', '--filepath',   default='', nargs='?',help=u'同步指定版本中变动的文件列表（内容以本地文件为准）')
+parser.add_argument('-f', '--filepath',   default='', nargs='?',help=u'同步单个文件')
 parser.add_argument('-P', '--prompt',     default=False,action='store_true',help=u'是否显示需要同步的文件列表')
 parser.add_argument('-NCT', '--checkMTime',     default=True,action='store_false',help=u'是否检查文件修改时间')
 
