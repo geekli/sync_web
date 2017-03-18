@@ -431,10 +431,9 @@ if conf['include_path']:
         if os.path.isfile(_):
             filelist.append({'op':'FU','file':_})
 
-filelist=filter_repeat_file(filelist)    
+filelist = filter_repeat_file(filelist)    
 if conf['prompt'] or args.prompt:
     prompt_sync(filelist)
-    
 
 if conf['local_backup_path']:
     clearLocalBackupPath(conf['local_backup_path'])
@@ -448,6 +447,3 @@ for ftp in cf.sections():
         sync.setFileList(filelist)
         sync.connect()
         sync.sync()
-
-time.sleep(2)
-
