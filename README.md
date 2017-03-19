@@ -8,25 +8,58 @@ sync_web
 author: [ksc](http://blog.geekli.cn)
 
 ####使用方法:
- sync_web 配置文件路径 
+**如何指定配置文件**
+
+如：
  
- 如： 
-> sync_web /etc/syncweb/config.ini
+    sync_web /etc/syncweb/config.ini
+
+若配置名称是config-foo.ini且和脚本在同一目录，则可用下面简化方式    
+
+    sync_web -c foo 
 
 若脚本所在目录下存在config.ini则默认使用该文件做配置文件
+
+**参数说明:**
+
+    usage: sync_web.py [-h] [-v] [-c [CONFIG_NAME]] [-r [REVERSIONS]] [-l [LAST]]
+                       [-f [FILEPATH]] [-P] [-NCT]
+                       [config_file]
+
+    positional arguments:
+      config_file           配置文件路径
+
+    optional arguments:
+      -h, --help            show this help message and exit
+      -v, --version         show program's version number and exit
+      -c [CONFIG_NAME], --config_name [CONFIG_NAME]
+                            配置文件名称
+      -r [REVERSIONS], --reversions [REVERSIONS]
+                            同步指定版本中变动的文件列表（内容以本地文件为准）
+      -l [LAST], --last [LAST]
+                            同步最近n个版本的变动文件（内容以本地文件为准）
+      -f [FILEPATH], --filepath [FILEPATH]
+                            同步单个文件
+      -P, --prompt          是否显示需要同步的文件列表
+      -NCT, --checkMTime    是否检查文件修改时间
+
+
 
 > 需要安装python2.7环境与**svn**|**git**客户端（确保**svn**|**git**命令所在目录加入到环境变量path中，即在终端下可以执行）
 
 > 在window下多个网站的话比较方便的方法是
-   
-> 1. 右击脚本-\>发送到桌面快捷方式
-> 2. 右击快捷方式点击属性 修改**目标**一栏
-> 3. 在脚本路径后面添加配置文件路径 例如 D:\\SyncWeb\\sync_web.py D:\\temp\\syncweb-config.ini
+> 假设脚本目录是  D:\\SyncWeb\\
+> 1. 在脚本目录为每个网站建立配置文件 如： config-site1.ini   
+> 2. 右击脚本-\>发送到桌面快捷方式
+> 3. 右击快捷方式点击属性 修改**目标**一栏
+> 4. 在脚本路径后面添加配置文件路径 例如 D:\\SyncWeb\\sync_web.py -c site1
 
 
 
  
-####配置文件格式
+####配置文件
+
+**格式**
 config.ini:
 
     [ftp]
@@ -59,7 +92,8 @@ config.ini:
     
     [var]
     lasttime = 0 #或者是当前时间戳，由于可同时传到了多台服务器，最后修改时间挪到了[ftp]部分去了。所以这里暂时没有用到
-需要注意的是
+    
+**需要注意的是**
 
 webroot
 >比如在服务器上网站的绝对路径是 /var/www/web/ 但是ftp登陆后的根目录是/var/www/ 也就是说不能再往上走了
@@ -81,6 +115,8 @@ paths
 若设置 exclude\_path= ign  则会忽略掉 ignore1/ ignore2/ 、igno/ 等目录
 
 >若不想这样的话 在目录后面加上斜杠 exclude\_path= ign/  
+
+
 
 ###计划
 
