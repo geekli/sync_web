@@ -27,6 +27,8 @@ parser.add_argument('-l', '--last',       default=False,  nargs='?',help=u'同�
 parser.add_argument('-f', '--filepath',   default='', nargs='?',help=u'同步单个文件')
 parser.add_argument('-P', '--prompt',     default=False,action='store_true',help=u'是否显示需要同步的文件列表')
 parser.add_argument('-NCT', '--checkMTime',     default=True,action='store_false',help=u'是否检查文件修改时间')
+parser.add_argument('--username',     default=None, help=u'指定FTP用户名')
+parser.add_argument('--password',     default=None, help=u'指定FTP密码')
 
 args = parser.parse_args()
 #print(args);quit()    
@@ -280,21 +282,28 @@ class Ftp_sync:
         self.config_file = config_file
         self.local_webroot = local_webroot
         self.ftp_name = ftp_name
-        try:
-            self.ftp_host    = cf.get(ftp_name,'host')
-            self.ftp_port    = cf.get(ftp_name,'port')
-            self.ftp_user    = cf.get(ftp_name,'user')
-            self.ftp_passwd  = cf.get(ftp_name,'passwd')
-            self.ftp_webroot = cf.get(ftp_name,'webroot')
-            self.ftp_ssl     = cf.getboolean(ftp_name,'ssl')
-            self.automkdir   = cf.getboolean(ftp_name,'automkdir')
-        except Exception as e:
-            print('Parse config file failed in ['+ftp_name+']')
-            print(e)
-            sys.exit(1)
+        
         self.lastUploadTime=self.getLastTime()
         self.filelist=[]
-    
+
+    def loadFtpConfig(self, username, password):
+        self.ftp_user = username
+        self.ftp_passwd = password
+        try:
+            self.ftp_host    = self.cf.get(self.ftp_name,'host')
+            self.ftp_port    = self.cf.get(self.ftp_name,'port')
+            if not username: #若没有指定用户名则从配置文件读取
+                self.ftp_user    = self.cf.get(self.ftp_name,'user')
+            if not password:    
+                self.ftp_passwd  = self.cf.get(self.ftp_name,'passwd')
+
+            self.ftp_webroot = self.cf.get(self.ftp_name,'webroot')
+            self.ftp_ssl     = self.cf.getboolean(self.ftp_name,'ssl')
+            self.automkdir   = self.cf.getboolean(self.ftp_name,'automkdir')
+        except Exception as e:
+            print('Parse config file failed in ['+self.ftp_name+']')
+            print(e)
+            sys.exit(1)
     def setFileList(self,filelist):
         """ 设置需要同步的文件列表"""
         self.filelist=filelist
@@ -456,10 +465,12 @@ if conf['local_backup_path']:
     saveChangedFile(conf['local_backup_path'], filelist)
     
 for ftp in cf.sections():
-    if ftp[0:3]=='ftp':
-        sync=Ftp_sync(ftp)
-        if args.reversions or args.filepath or not args.checkMTime:
-            sync.checkMTime=False
-        sync.setFileList(filelist)
-        sync.connect()
-        sync.sync()
+    if not ftp.startswith('ftp'):
+        continue
+    sync=Ftp_sync(ftp)
+    if args.reversions or args.filepath or not args.checkMTime:
+        sync.checkMTime=False
+    sync.loadFtpConfig(args.username, args.password)    
+    sync.setFileList(filelist)
+    sync.connect()
+    sync.sync()
