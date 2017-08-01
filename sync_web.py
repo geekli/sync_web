@@ -42,7 +42,7 @@ print('config: '+config_file )
 
 if os.path.isfile(config_file)==False:
     print('config file does not exist')
-    sys.exit()    
+    sys.exit(1)    
 
 conf={}
 cf = ConfigParser.ConfigParser()
@@ -50,6 +50,7 @@ try:
     cf.read(config_file)
     local_webroot =cf.get('local','local_webroot')
     conf['log_file'] = cf.get('local','log_file')
+    conf['vcs'] = '' #version control system
     conf['prompt'] = False #prompt before every sync
     conf['local_backup_path'] = False  
     conf['exclude_path'] = [] 
@@ -66,11 +67,17 @@ try:
         
     if cf.has_option('local','include_path'):
         conf['include_path']=string.split(cf.get('local','include_path'),',')
+    if cf.has_option('local', 'vcs'):
+        conf['vcs'] = cf.get('local','vcs')
+        
+        if conf['vcs'] not in ('svn', 'git', 'none'):
+            print('config vcs must in svn,git,none')
+            sys.exit(1)
 
 except Exception as e:
     print('Parse config file failed')
-    print(e)
-    sys.exit()
+    raise e
+    sys.exit(1)
     
 #本地项目目录
 local_webroot=os.path.realpath(local_webroot)+os.sep
@@ -78,13 +85,20 @@ local_webroot=os.path.realpath(local_webroot)+os.sep
 
 
 IS_SVN=False
-if os.path.isdir(local_webroot+'.svn'):
+IS_GIT=False
+
+if conf['vcs']:
+    if conf['vcs'] == 'git':
+        IS_GIT = True
+    elif conf['vcs'] == 'svn':
+        IS_SVN = True
+elif os.path.isdir(local_webroot+'.svn'):
     IS_SVN=True
 elif os.path.isdir(local_webroot+'.git'):
-    IS_SVN=False
+    IS_GIT=False
 else:
-    print('no version control')
-    sys.exit()
+    print('WRANING no version control')
+    #sys.exit()
     
 #依赖版本控制系统获取变动文件列表
 def getChangeFiles():
@@ -96,9 +110,10 @@ def getChangeFiles():
     global local_webroot
     if IS_SVN:
         sh='svn st'
-    else:
+    elif IS_GIT:
         sh='git status -s'
-        
+    else:
+        return []
 
     #导出修改的文件列表
     pipe=subprocess.Popen(sh, shell=True,stdout=subprocess.PIPE)
@@ -129,9 +144,10 @@ def getReversionsFile(version):
             sh+=['-l',str(int(version.split(':')[1]))]
         else:
             sh+=['-r',str(version)]
-    else:
+    elif IS_GIT:
         sh=['git', 'log', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"', '-1']
-
+    else:
+        return []
     pipe=subprocess.Popen(sh, stdout=subprocess.PIPE, shell=True)
     
     files=[]
@@ -275,7 +291,7 @@ class Ftp_sync:
         except Exception as e:
             print('Parse config file failed in ['+ftp_name+']')
             print(e)
-            sys.exit()
+            sys.exit(1)
         self.lastUploadTime=self.getLastTime()
         self.filelist=[]
     
@@ -310,14 +326,14 @@ class Ftp_sync:
         except Exception as e:
             print (e)
             print ('connect ftp server failed')
-            sys.exit()
+            sys.exit(1)
         try:
             ftp.login(self.ftp_user,self.ftp_passwd)
             print ('login ok')
         except Exception as e:#可能服务器不支持ssl,或者用户名密码不正确
             print (e)
             print ('Username or password are not correct')
-            sys.exit()        
+            sys.exit(1)        
         
         if self.ftp_ssl:
             try:    
@@ -366,7 +382,7 @@ class Ftp_sync:
                     self.ftp.storbinary('STOR '+ftp_file,file_handler,self.bufsize) 
                 except socket.error as e:
                     print('socket.error %s'%e)
-                    sys.exit()
+                    sys.exit(1)
                 except Exception as e:
                     #print(e)
                     if self.automkdir== False:
@@ -386,7 +402,7 @@ class Ftp_sync:
                             print('retry success')
                         except Exception as e:
                             print(e)
-                            sys.exit()
+                            sys.exit(1)
                 finally:        
                     file_handler.close()
                         
@@ -404,7 +420,7 @@ if args.filepath:#指定同步单个文件
         _filepath=os.path.realpath(_filepath)
     if not os.path.isfile(_filepath):
         print('File does not exist')
-        sys.exit()
+        sys.exit(1)
     filelist=[]    
     filelist.append({'op':'F','file':_filepath.replace(local_webroot,'')})#相对网站根目录的路径
 

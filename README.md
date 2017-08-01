@@ -83,6 +83,7 @@ config.ini:
     lasttime = 0 #或者是当前时间戳
     
     [local]
+    vcs = [svn|git|none] #可选指定版本控制系统，不指定的话会自动检测
     local_webroot = D:/xampp/web/ 
     log_file = #不存储日志留空
     prompt=False #同步时是否需要确认，默认False，可空
