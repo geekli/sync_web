@@ -416,8 +416,10 @@ class Ftp_sync:
                 finally:        
                     file_handler.close()
                         
-        self.setLastTime()            
-        self.ftp.quit()
+        self.setLastTime()
+        if self.uploadFileList:# 没有文件上传的时候，ftp.quit()会超时
+            self.ftp.quit()
+
         if  _uploadNum >0:
             writeLogs('共上传'+str(_uploadNum)+'个文件')
         else:
