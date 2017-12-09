@@ -98,7 +98,7 @@ if conf['vcs']:
 elif os.path.isdir(local_webroot+'.svn'):
     IS_SVN=True
 elif os.path.isdir(local_webroot+'.git'):
-    IS_GIT=False
+    IS_GIT=True
 else:
     print('WRANING no version control')
     #sys.exit()
@@ -148,7 +148,7 @@ def getReversionsFile(version):
         else:
             sh+=['-r',str(version)]
     elif IS_GIT:
-        sh=['git', 'log', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"', '-1']
+        sh=['git', 'log', '-n', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"', '-1']
     else:
         return []
     pipe=subprocess.Popen(sh, stdout=subprocess.PIPE, shell=True)
