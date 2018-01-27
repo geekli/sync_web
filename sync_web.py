@@ -217,7 +217,9 @@ def tagExcludeFile(item):
     global conf
     for _path in conf['exclude_path']:
         #将文件路径处理成path/too/foo.txt格式
-        _fullpath=item['file'].replace('\\','/')[1:]
+        _fullpath=item['file'].replace('\\','/')
+        if _fullpath.startswith('/'):
+            _fullpath = _fullpath[1:]
         if _fullpath.startswith(_path):
             item['op']='ex'
             print('EXCLUDE',item['file'])
