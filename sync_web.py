@@ -30,6 +30,7 @@ parser.add_argument('-P', '--prompt',     default=False,action='store_true',help
 parser.add_argument('-NCT', '--checkMTime',     default=True,action='store_false',help=u'是否检查文件修改时间')
 parser.add_argument('--username',     default=None, help=u'指定FTP用户名')
 parser.add_argument('--password',     default=None, help=u'指定FTP密码')
+parser.add_argument('--debug',   default=False, action='store_true', help=u'调试信息')
 
 args = parser.parse_args()
 #print(args);quit()    
@@ -288,6 +289,7 @@ class Ftp_sync:
         
         self.lastUploadTime=self.getLastTime()
         self.filelist=[]
+        self.debug = False
 
     def loadFtpConfig(self, username, password):
         self.ftp_user = username
@@ -346,6 +348,11 @@ class Ftp_sync:
             print (e)
             print ('Username or password are not correct')
             sys.exit(1)        
+            
+        if self.debug:
+            ftp.set_debuglevel(2)  
+
+        #ftp.set_pasv(1) #0主动模式 1 #被动模式
         
         if self.ftp_ssl:
             try:    
@@ -396,7 +403,7 @@ class Ftp_sync:
                     print('socket.error %s'%e)
                     sys.exit(1)
                 except Exception as e:
-                    #print(e)
+                    print(e)
                     if self.automkdir== False:
                         sys.exit()
                     else:# make dir and try again
@@ -406,8 +413,8 @@ class Ftp_sync:
                             for _ftpdir in ftpdirs:
                                 try:
                                     self.ftp.mkd(_ftpdir)
-                                except:
-                                    pass #忽略创建目录的错误
+                                except Exception as e:
+                                    print('mkdir failed:%s'%e)
                                 self.ftp.cwd(_ftpdir)                               
                             self.ftp.cwd(self.ftp_webroot)
                             self.ftp.storbinary('STOR '+ftp_file,file_handler,self.bufsize) 
@@ -473,6 +480,8 @@ for ftp in cf.sections():
     if not ftp.startswith('ftp'):
         continue
     sync=Ftp_sync(ftp)
+    if args.debug:
+        sync.debug = True
     if args.reversions or args.filepath or not args.checkMTime:
         sync.checkMTime=False
     sync.loadFtpConfig(args.username, args.password)    
