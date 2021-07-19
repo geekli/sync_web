@@ -5,8 +5,15 @@ from __future__ import print_function
 将本地的修改通过ftp一键同步到服务器上 ，非常适合维护一个网站并且经常改动代码的情况(监测文件变动依赖于版本控制系统)
 usage: sync_web config.ini
 author: ksc (http://blog.geekli.cn)
+
+tips:
+    被动模式传送数据是客户端连接到服务器的端口（1024以上端口）
+    主动模式传送数据时是服务器（20端口）连接到客户端的端口
+
 """
-import os,time,sys
+import os
+import time
+import sys
 import stat
 import string
 import subprocess
@@ -15,10 +22,15 @@ import argparse
 import socket
 from ftplib import FTP
 from ftplib import FTP_TLS as FTPS
-import ConfigParser
+try:
+    from ConfigParser import ConfigParser
+except ModuleNotFoundError:
+    from configparser import ConfigParser
+
 script_path=sys.argv[0]
 version= '2.3.0'
- 
+IS_PYTHON3 = sys.version_info.major == 3
+
 parser = argparse.ArgumentParser()
 parser.add_argument('-v','--version', action='version', version=version, help="show program's version number and exit")
 parser.add_argument('config_file',        default='config.ini', nargs='?',  help=u'配置文件路径')
@@ -49,7 +61,7 @@ if os.path.isfile(config_file)==False:
     sys.exit(1)    
 
 conf={}
-cf = ConfigParser.ConfigParser()
+cf = ConfigParser()
 try:
     cf.read(config_file)
     local_webroot =cf.get('local','local_webroot')
@@ -67,10 +79,10 @@ try:
         conf['local_backup_path']=cf.get('local','local_backup_path')
         
     if cf.has_option('local','exclude_path'):
-        conf['exclude_path']=string.split(cf.get('local','exclude_path'),',')
+        conf['exclude_path']=cf.get('local','exclude_path').split(',')
         
     if cf.has_option('local','include_path'):
-        conf['include_path']=string.split(cf.get('local','include_path'),',')
+        conf['include_path']=cf.get('local','include_path').split(',')
     if cf.has_option('local', 'vcs'):
         conf['vcs'] = cf.get('local','vcs')
         
@@ -125,6 +137,9 @@ def getChangeFiles():
     if pipe.returncode > 0:
         sys.exit(1)
     files=[]
+    
+    if IS_PYTHON3:
+        stdout = stdout.decode('utf-8')
     for line in stdout.split('\n'):
         line=line.rstrip()
         #print(line)
@@ -158,6 +173,10 @@ def getReversionsFile(version):
     stdout,stderr=pipe.communicate()
     if pipe.returncode > 0:
         sys.exit(1)
+    
+    if IS_PYTHON3:
+        stdout = stdout.decode('utf-8')
+        
     for line in stdout.split('\n'):
         line=line.strip()
         #print(line)
@@ -205,7 +224,7 @@ def getKcFiles():
         return []
     flist=[]
     paths=cf.get('local','paths')
-    paths=string.split(paths,',')
+    paths=paths.split(',')
     for path in paths:
         if os.path.isfile(path):
             flist.append({'op':'a','file':path})
@@ -323,8 +342,8 @@ class Ftp_sync:
         
     def setLastTime(self):
         """设置最后一次同步的时间"""
-        self.cf.set(self.ftp_name, "lasttime", time.time())
-        self.cf.set("var", "lasttime", time.time())
+        self.cf.set(self.ftp_name, "lasttime", str(time.time()))
+        self.cf.set("var", "lasttime", str(time.time()))
         self.cf.write(open(self.config_file, "w"))
         
     def connect(self):
@@ -336,7 +355,7 @@ class Ftp_sync:
         print('-'*20+self.ftp_name+'-'*20)
         print('connect '+('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port)
         try:
-            ftp.connect(self.ftp_host,self.ftp_port, self.timeout)
+            ftp.connect(self.ftp_host,int(self.ftp_port), self.timeout)
         except Exception as e:
             print (e)
             print ('connect ftp server failed')
@@ -428,7 +447,6 @@ class Ftp_sync:
         self.setLastTime()
         if self.uploadFileList:# 没有文件上传的时候，ftp.quit()会超时
             self.ftp.quit()
-
         if  _uploadNum >0:
             writeLogs('共上传'+str(_uploadNum)+'个文件')
         else:
