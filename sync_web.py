@@ -245,12 +245,17 @@ def tagExcludeFile(item):
             print('EXCLUDE',item['file'])
     return item    
  
+def cli_ask(question):
+    if IS_PYTHON3:
+        return input(question)
+    else:
+        return raw_input(question)
 def prompt_sync(filelist):
     
     for f in filelist:
         if f['op']!='ex':
             print( f['file'])
-    y=raw_input('start sync?[Y/n]\n')
+    y=cli_ask('start sync?[Y/n]\n')
     if string.strip(y)=='n':
         sys.exit()
 
@@ -260,7 +265,7 @@ def clearLocalBackupPath(backupPath):
         return
     confirmFile=os.path.join(backupPath,'confirm_remove_allfile')    
     if not os.path.isfile(confirmFile):
-        y=raw_input('delete all file in %s ?[Y/n]\n'%backupPath)
+        y=cli_ask('delete all file in %s ?[Y/n]\n'%backupPath)
         if string.strip(y)=='n':
             return 
     shutil.rmtree(backupPath)
