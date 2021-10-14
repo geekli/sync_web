@@ -298,7 +298,57 @@ def filter_repeat_file(filelist):
         if file['file'] not in _flist:
             _list.append(file)
             _flist.append(file['file'])
-    return _list        
+    return _list      
+
+class SFTP(object):# sftp兼容 FTP类
+    def connect(self, host, port, timeout):
+        self.host = host
+        self.port = port
+        self.timeout = timeout
+        import paramiko
+
+        self.client = paramiko.SSHClient()
+        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        
+    def login(self, username, password):
+        self.client.connect(hostname=self.host, port=self.port, username=username, password=password)
+        self.ftp = self.client.open_sftp()
+
+    def getwelcome(self):
+        pass
+        
+    def storbinary(self, cmd, file_handler, bufsize):
+        #cmd 'STOR '+ftp_file
+        
+        remote = cmd.split('STOR ')[1]
+        #local = os.path.abspath(local)
+        remote = remote.replace('/./', '/')
+        local = os.path.abspath(file_handler.name)
+        print(local)
+        print(remote)
+        try:
+            self.ftp.put(local, remote)
+        except socket.error as e:
+            if str(e).find(u'系统找不到指定的路径')>0:
+                raise Exception('need dir? "系统找不到指定的路径"')
+            if str(e).find(' No such file') >0:
+                raise Exception('need dir? "No such file"')
+            raise e
+
+    def pwd(self):
+        return self.ftp.getcwd()
+        
+    def mkd(self, dirname):
+        #print('makedir %s'%dirname)
+        self.ftp.mkdir(dirname)
+        
+    def cwd(self, dirname):
+        #print('change dir %s'%dirname)
+        self.ftp.chdir(dirname)
+        
+    def quit(self):
+        self.client.close()
+        
 class Ftp_sync:
     uploadFileList=[]#本次上传的文件列表
     checkMTime=True#是否检查文件修改时间
@@ -318,6 +368,7 @@ class Ftp_sync:
     def loadFtpConfig(self, username, password):
         self.ftp_user = username
         self.ftp_passwd = password
+        self.is_sftp = False #是否通过SFTP
         try:
             self.ftp_host    = self.cf.get(self.ftp_name,'host')
             self.ftp_port    = self.cf.get(self.ftp_name,'port')
@@ -328,6 +379,8 @@ class Ftp_sync:
 
             self.ftp_webroot = self.cf.get(self.ftp_name,'webroot')
             self.ftp_ssl     = self.cf.getboolean(self.ftp_name,'ssl')
+            if self.cf.has_option(self.ftp_name, 'sftp'):
+                self.is_sftp     = self.cf.getboolean(self.ftp_name,'sftp')
             self.automkdir   = self.cf.getboolean(self.ftp_name,'automkdir')
         except Exception as e:
             print('Parse config file failed in ['+self.ftp_name+']')
@@ -341,7 +394,7 @@ class Ftp_sync:
         """返回最后一次同步的时间"""
         try:
             ltime= cf.getfloat(self.ftp_name,'lasttime')
-        except:
+        except Exception:
             return 0
         return ltime
         
@@ -353,12 +406,17 @@ class Ftp_sync:
         
     def connect(self):
         #初始化 FTP 链接
-        if self.ftp_ssl:
+        if self.is_sftp:
+            ftp = SFTP()
+        elif self.ftp_ssl:
             ftp = FTPS()
         else:
             ftp = FTP()
         print('-'*20+self.ftp_name+'-'*20)
-        print('connect '+('ftps' if self.ftp_ssl else 'ftp')+'://'+self.ftp_host+':'+self.ftp_port)
+        _type = 'ftps' if self.ftp_ssl else 'ftp'
+        if self.is_sftp:
+            _type = 'sftp'
+        print('connect '+(_type)+'://'+self.ftp_host+':'+self.ftp_port)
         try:
             ftp.connect(self.ftp_host,int(self.ftp_port), self.timeout)
         except Exception as e:
@@ -370,7 +428,7 @@ class Ftp_sync:
             print ('login ok')
         except Exception as e:#可能服务器不支持ssl,或者用户名密码不正确
             print (e)
-            print ('Username or password are not correct')
+            print ('Maybe username or password are not correct')
             sys.exit(1)        
             
         if self.debug:
@@ -428,18 +486,20 @@ class Ftp_sync:
                     sys.exit(1)
                 except Exception as e:
                     print(e)
-                    if self.automkdir== False:
+                    if self.automkdir is False:
                         sys.exit()
                     else:# make dir and try again
                         try:
                             print('try mkdir: '+os.path.dirname(file))
                             ftpdirs=os.path.dirname(file).split('/')
-                            for _ftpdir in ftpdirs:
-                                try:
-                                    self.ftp.mkd(_ftpdir)
-                                except Exception as e:
-                                    print('mkdir failed:%s'%e)
-                                self.ftp.cwd(_ftpdir)                               
+                            if True:
+                                
+                                for _ftpdir in ftpdirs:
+                                    try:
+                                        self.ftp.mkd(_ftpdir)
+                                    except Exception as e:
+                                        print('mkdir failed:%s'%e)
+                                    self.ftp.cwd(_ftpdir)                               
                             self.ftp.cwd(self.ftp_webroot)
                             self.ftp.storbinary('STOR '+ftp_file,file_handler,self.bufsize) 
                             print('retry success')
@@ -456,7 +516,7 @@ class Ftp_sync:
             writeLogs('共上传'+str(_uploadNum)+'个文件')
         else:
             writeLogs('没有上传文件')
-        print('success');
+        print('success')
      
 if args.filepath:#指定同步单个文件
     _filepath=args.filepath
@@ -468,9 +528,9 @@ if args.filepath:#指定同步单个文件
     filelist=[]    
     filelist.append({'op':'F','file':_filepath.replace(local_webroot,'')})#相对网站根目录的路径
 
-elif args.last!=False:#同步最近n个版本
+elif args.last is not False:#同步最近n个版本
     os.chdir(local_webroot)
-    args.last=1 if args.last==None else args.last
+    args.last=1 if args.last is None else args.last
     filelist=getReversionsFile('last:%s'%(args.last))
     
 elif args.reversions!='':#同步指定版本

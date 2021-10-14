@@ -1,7 +1,7 @@
 sync_web
 =======
 
-将本地的修改通过ftp一键同步到一台或多台服务器上 ，**只同步修改内容**，非常适合维护一个网站并且经常改动代码的情况。
+将本地的修改通过ftp/sftp一键同步到一台或多台服务器上 ，**只同步修改内容**，非常适合维护一个网站并且经常改动代码的情况。
 
 监测文件变动依赖于svn或git，脚本自动检测当前项目所用的版本控制系统
 
@@ -45,7 +45,7 @@ author: [ksc](http://blog.geekli.cn)
 
 
 
-> 需要安装python2.7环境与**svn**|**git**客户端（确保**svn**|**git**命令所在目录加入到环境变量path中，即在终端下可以执行）
+> 需要安装python(2/3)环境与**svn**|**git**客户端（确保**svn**|**git**命令所在目录加入到环境变量path中，即在终端下可以执行）
 
 > 在window下多个网站的话比较方便的方法是
 > 假设脚本目录是  D:\\SyncWeb\\
@@ -67,6 +67,7 @@ config.ini:
     port = 21       #FTP端口
     user = ftp_user #FTP 用户名
     passwd = ftp_passwd
+    sftp = False #是否通过sftp 若是 则账号密码端口需要修改为ssh的
     ssl = True #是否启用ssl
     webroot = /web/ #网址相对于ftp根目录的绝对地址 
     automkdir = true #若服务器上目录不存在是否自动建立
