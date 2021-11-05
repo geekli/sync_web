@@ -164,7 +164,10 @@ def getReversionsFile(version):
         else:
             sh+=['-r',str(version)]
     elif IS_GIT:
-        sh=['git', 'log', '-n', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"', '-1']
+        if version.startswith('last:'):#最近n个版本
+            version = str(int(version.split(':')[1]))
+
+        sh=['git', 'log', '-n', version, '--name-status', '--pretty=format:"%H - %an, %ad : %s"']
     else:
         return []
     pipe=subprocess.Popen(sh, stdout=subprocess.PIPE, shell=True)
@@ -256,7 +259,7 @@ def prompt_sync(filelist):
         if f['op']!='ex':
             print( f['file'])
     y=cli_ask('start sync?[Y/n]\n')
-    if string.strip(y)=='n':
+    if y.strip()=='n':
         sys.exit()
 
 def clearLocalBackupPath(backupPath):  
@@ -266,7 +269,7 @@ def clearLocalBackupPath(backupPath):
     confirmFile=os.path.join(backupPath,'confirm_remove_allfile')    
     if not os.path.isfile(confirmFile):
         y=cli_ask('delete all file in %s ?[Y/n]\n'%backupPath)
-        if string.strip(y)=='n':
+        if y.strip()=='n':
             return 
     shutil.rmtree(backupPath)
     os.mkdir(backupPath)
@@ -324,8 +327,8 @@ class SFTP(object):# sftp兼容 FTP类
         #local = os.path.abspath(local)
         remote = remote.replace('/./', '/')
         local = os.path.abspath(file_handler.name)
-        print(local)
-        print(remote)
+        #print(local)
+        #print(remote)
         try:
             self.ftp.put(local, remote)
         except socket.error as e:
@@ -466,10 +469,8 @@ class Ftp_sync:
             if not os.path.isfile(fullname):
                 print('the file `%s` does not exist'%fullname)
                 continue
-             
             _st=os.stat(fullname)
             st_mtime = _st[stat.ST_MTIME]
-            
             #如果强制上传 或不检查文件修改时间 或 从上次上传后，文件修改过
             if line['op']=='FU' or not self.checkMTime or st_mtime > self.lastUploadTime:
      
